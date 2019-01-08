@@ -1,0 +1,5 @@
+TOKEN = ''
+start_msg = 'welcome'
+tnx_msg = 'thanks'
+private_msg = 'Sorry, the page is private!'
+error_msg = 'ERROR!!'
