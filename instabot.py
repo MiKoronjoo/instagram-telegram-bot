@@ -153,10 +153,10 @@ def handle_pv(msg):
             ########## Send caption ##########
             try:
                 post_caption = get_caption(the_data)
-                bot.sendMessage(user_id, post_caption)
+                has_caption = True
 
             except IndexError:
-                pass
+                has_caption = False
 
             except KeyError:
                 bot.deleteMessage((user_id, wait_msg_id))
@@ -165,6 +165,7 @@ def handle_pv(msg):
 
                 else:
                     bot.sendMessage(user_id, error_msg)
+
                 return
 
             ########## Send media group ##########
@@ -180,6 +181,7 @@ def handle_pv(msg):
                     album.append(input_media)
 
                 bot.deleteMessage((user_id, wait_msg_id))
+                bot.sendMessage(user_id, this_posts)
                 bot.sendMediaGroup(user_id, album)
 
             ########## Single media ##########
@@ -188,6 +190,7 @@ def handle_pv(msg):
                 try:
                     video_url = the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['video_url']
                     bot.deleteMessage((user_id, wait_msg_id))
+                    bot.sendMessage(user_id, this_post)
                     bot.sendVideo(user_id, video_url)
 
                 ########## Send Photo ##########
@@ -196,7 +199,12 @@ def handle_pv(msg):
                         the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['display_resources'][-1][
                             'src']
                     bot.deleteMessage((user_id, wait_msg_id))
+                    bot.sendMessage(user_id, this_post)
                     bot.sendPhoto(user_id, pic_url)
+
+            if has_caption:
+                bot.sendMessage(user_id, this_caption)
+                bot.sendMessage(user_id, post_caption)
 
 
 def message_handler(msg):
