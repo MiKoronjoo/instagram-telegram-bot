@@ -87,7 +87,7 @@ def keyboard_maker(keyboard_labels):
 
         my_keyboard.append(keyboard_row)
 
-    return ReplyKeyboardMarkup(keyboard=my_keyboard)
+    return ReplyKeyboardMarkup(keyboard=my_keyboard, resize_keyboard=True)
 
 
 def get_keyboard(user_id):
@@ -153,12 +153,10 @@ def handle_pv(msg):
             ########## Send caption ##########
             try:
                 post_caption = get_caption(the_data)
-                if len(post_caption) > 1024:
-                    bot.sendMessage(user_id, post_caption)
-                    post_caption = ''
+                bot.sendMessage(user_id, post_caption)
 
             except IndexError:
-                post_caption = ''
+                pass
 
             except KeyError:
                 bot.deleteMessage((user_id, wait_msg_id))
@@ -174,10 +172,10 @@ def handle_pv(msg):
                 album = []
                 for media_url in media_url_generator(the_data):
                     if media_url.find('.jpg') != -1:
-                        input_media = InputMediaPhoto(type='photo', media=media_url, caption=post_caption)
+                        input_media = InputMediaPhoto(type='photo', media=media_url)
 
                     else:
-                        input_media = InputMediaVideo(type='video', media=media_url, caption=post_caption)
+                        input_media = InputMediaVideo(type='video', media=media_url)
 
                     album.append(input_media)
 
@@ -190,7 +188,7 @@ def handle_pv(msg):
                 try:
                     video_url = the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['video_url']
                     bot.deleteMessage((user_id, wait_msg_id))
-                    bot.sendVideo(user_id, video_url, caption=post_caption)
+                    bot.sendVideo(user_id, video_url)
 
                 ########## Send Photo ##########
                 except KeyError:
@@ -198,7 +196,7 @@ def handle_pv(msg):
                         the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['display_resources'][-1][
                             'src']
                     bot.deleteMessage((user_id, wait_msg_id))
-                    bot.sendPhoto(user_id, pic_url, caption=post_caption)
+                    bot.sendPhoto(user_id, pic_url)
 
 
 def message_handler(msg):
