@@ -1,6 +1,7 @@
-TOKEN = ''
+TOKEN = 'YOUR-BOT-TOKEN'
 admin_id = 0
-start_msg = 'welcome'
-private_msg = 'Sorry, the page is private!'
-error_msg = 'ERROR!!'
-bad_input = 'Bad input!'
+start_msg = 'خوش آمدید'
+private_msg = 'متاسفانه این پیج، پرایوت است'
+error_msg = 'لینک اشتباه!'
+bad_input = 'ورودی اشتباه!'
+wait_msg = 'لطفا کمی صبر کنید...'

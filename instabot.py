@@ -26,6 +26,8 @@ try:
 except FileNotFoundError:
     users = {}
     times = []
+
+
 ###################################
 
 def send_to_all(admin_msg):
@@ -41,12 +43,13 @@ def statistics():
     day = 24 * 60 * 60
     this_time = time.time() - day
 
-    return 'Total users: %d\n\nUsers in last 24 hours: %d' % (len(users), len([x for x in times if x > this_time]))
+    return 'تعداد کل کاربران: %d\n\nتعداد کاربرانی که در ۲۴ساعت گذشته اضافه شده‌اند: %d' \
+           % (len(users), len([x for x in times if x > this_time]))
 
 
-state_msgs = {STATE.START: 'Send an instagram post link',
-              STATE.MANAGE: 'Choose one of the options:',
-              STATE.SEND_TO_ALL: 'Enter a message to send to all users:',
+state_msgs = {STATE.START: 'لطفا لینک یک پست اینستاگرام را بفرستید',
+              STATE.MANAGE: 'لطفا یکی از موارد را انتخاب کنید:',
+              STATE.SEND_TO_ALL: 'لطفا یک پیغام برای ارسال به تمام کاربران وارد کنید:',
               STATE.BOT_STATISTICS: statistics()
               }
 
@@ -90,30 +93,15 @@ def keyboard_maker(keyboard_labels):
 def get_keyboard(user_id):
     if user_id == admin_id:
         if users[user_id] == STATE.START:
-            return keyboard_maker([['Manage']])
+            return keyboard_maker([['مدیریت']])
 
         elif users[user_id] == STATE.MANAGE:
-            return keyboard_maker([['Send message to users'], ['Bot statistics'], ['Back']])
+            return keyboard_maker([['پیغام به اعضا'], ['آمار بات'], ['بازگشت']])
 
         elif users[user_id] in [STATE.SEND_TO_ALL, STATE.BOT_STATISTICS]:
-            return keyboard_maker([['Back']])
+            return keyboard_maker([['بازگشت']])
 
     return ReplyKeyboardRemove(remove_keyboard=True)
-
-
-'''
-def get_users():
-    output = 'New users:\n'
-    el = []
-    for user_id in users:
-        el.append(user_id)
-
-    for user_id in el[-1:-10:-1]:
-        output += '[%s](tg://user?id=%d)\n' % (users[user_id], user_id)
-
-    output += '\nNumber of all users: %d' % len(users)
-
-    return output#'''
 
 
 def handle_pv(msg):
@@ -123,7 +111,7 @@ def handle_pv(msg):
         if msg['text'] == '/start':
             bot.sendMessage(user_id, start_msg, reply_markup=get_keyboard(user_id))
 
-        elif msg['text'] == 'Back':
+        elif msg['text'] == 'بازگشت':
             if users[user_id] == STATE.MANAGE:
                 users.update({user_id: STATE.START})
 
@@ -134,13 +122,13 @@ def handle_pv(msg):
                 users.update({user_id: STATE.MANAGE})
 
 
-        elif msg['text'] == 'Manage' and users[user_id] == STATE.START and user_id == admin_id:
+        elif msg['text'] == 'مدیریت' and users[user_id] == STATE.START and user_id == admin_id:
             users.update({user_id: STATE.MANAGE})
 
-        elif msg['text'] == 'Send message to users' and users[user_id] == STATE.MANAGE:
+        elif msg['text'] == 'پیغام به اعضا' and users[user_id] == STATE.MANAGE:
             users.update({user_id: STATE.SEND_TO_ALL})
 
-        elif msg['text'] == 'Bot statistics' and users[user_id] == STATE.MANAGE:
+        elif msg['text'] == 'آمار بات' and users[user_id] == STATE.MANAGE:
             bot.sendMessage(user_id, statistics())
 
         elif users[user_id] == STATE.BOT_STATISTICS:
@@ -148,15 +136,17 @@ def handle_pv(msg):
 
         elif users[user_id] == STATE.SEND_TO_ALL:
             send_to_all(msg['text'])
-            bot.sendMessage(user_id, 'Sent successfully!')
+            bot.sendMessage(user_id, 'با موفقیت ارسال شد')
             users.update({user_id: STATE.MANAGE})
 
         else:
+            wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
             ########## Load data ##########
             try:
                 the_data = get_data(msg['text'])
 
             except:
+                bot.deleteMessage((user_id, wait_msg_id))
                 bot.sendMessage(user_id, bad_input, reply_markup=get_keyboard(user_id))
                 return
 
@@ -171,6 +161,7 @@ def handle_pv(msg):
                 post_caption = ''
 
             except KeyError:
+                bot.deleteMessage((user_id, wait_msg_id))
                 if the_data['entry_data']['ProfilePage'][0]['graphql']['user']['is_private']:
                     bot.sendMessage(user_id, private_msg)
 
@@ -190,6 +181,7 @@ def handle_pv(msg):
 
                     album.append(input_media)
 
+                bot.deleteMessage((user_id, wait_msg_id))
                 bot.sendMediaGroup(user_id, album)
 
             ########## Single media ##########
@@ -197,6 +189,7 @@ def handle_pv(msg):
                 ########## Send video ##########
                 try:
                     video_url = the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['video_url']
+                    bot.deleteMessage((user_id, wait_msg_id))
                     bot.sendVideo(user_id, video_url, caption=post_caption)
 
                 ########## Send Photo ##########
@@ -204,6 +197,7 @@ def handle_pv(msg):
                     pic_url = \
                         the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['display_resources'][-1][
                             'src']
+                    bot.deleteMessage((user_id, wait_msg_id))
                     bot.sendPhoto(user_id, pic_url, caption=post_caption)
 
 
@@ -221,7 +215,6 @@ def message_handler(msg):
 
         handle_pv(msg)
         bot.sendMessage(chat_id, state_msgs[users[chat_id]], reply_markup=get_keyboard(chat_id))
-
 
 
 bot = telepot.Bot(TOKEN)
