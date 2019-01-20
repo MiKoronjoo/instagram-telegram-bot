@@ -8,6 +8,7 @@ import json
 from config import *
 import enum
 import pickle
+import os
 
 
 class STATE(enum.Enum):
@@ -71,6 +72,23 @@ def media_url_generator(the_data):
 
         else:
             yield media['node']['display_url']
+
+
+def story_url_generator(username):
+    source = requests.get('https://storiesig.com/stories/' + username).text
+    last_index = 0
+    download_str = 'download"><a href="'
+    while True:
+        first_index = source.find(download_str, last_index) + len(download_str)
+        if first_index == len(download_str) - 1:  # Not found
+            break
+        last_index = source.find('"', first_index)
+        yield source[first_index:last_index]
+
+
+def get_live(username):
+    print(username)
+    os.system('livestream_dl -u "myfirstpj" -p "w951q951" "%s"' % username.replace('/', ''))
 
 
 def get_caption(the_data):
@@ -140,6 +158,24 @@ def handle_pv(msg):
             users.update({user_id: STATE.MANAGE})
 
         else:
+            username = msg['text'].split('instagram.com/')[-1]
+            album = []
+            for story_url in story_url_generator(username):
+                if story_url.find('.jpg') != -1:
+                    input_media = InputMediaPhoto(type='photo', media=story_url)
+
+                else:
+                    input_media = InputMediaVideo(type='video', media=story_url)
+
+                album.append(input_media)
+
+            if album:
+                bot.sendMessage(user_id, this_story)
+                while album:
+                    bot.sendMediaGroup(user_id, album[:10])
+                    album = album[10:]
+                return
+
             wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
             ########## Load data ##########
             try:
