@@ -9,6 +9,30 @@ from config import *
 import enum
 import pickle
 import os
+import subprocess
+
+
+def download_live(target_user, username=def_username, password=def_password):
+    status, download_live_output = subprocess.getstatusoutput(
+        'livestream_dl -u "%s" -p "%s" "%s" ' % (username, password, target_user))
+    #print('livestream_dl -u "%s" -p "%s" "%s" ' % (username, password, target_user))
+    #print(status)
+    if status:
+        raise Exception('failed')
+
+    return download_live_output
+
+
+def get_file_names(st):
+    left_pivot = 1
+    right_bound = 0
+    while True:
+        left_pivot = st.find('Generated file(s):', right_bound) + 1
+        if not left_pivot:
+            break
+        left_bound = st.find('\n', left_pivot) + 1
+        right_bound = st.find('\n', left_bound)
+        yield st[left_bound:right_bound]
 
 
 class STATE(enum.Enum):
@@ -174,6 +198,17 @@ def handle_pv(msg):
                 while album:
                     bot.sendMediaGroup(user_id, album[:10])
                     album = album[10:]
+
+            gen = get_file_names(download_live(msg['text']))
+            for file_name in gen:
+                file = open(file_name, 'rb')
+                bot.sendMessage(user_id, this_live)
+                bot.sendVideo(user_id, file)
+                file.close()
+
+            exit_code = os.system('rm -rf downloaded')
+
+            if not exit_code or album:
                 return
 
             wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
