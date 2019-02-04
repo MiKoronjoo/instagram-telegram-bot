@@ -1,3 +1,5 @@
+import sys
+
 import telepot
 from telepot.loop import MessageLoop
 from telepot.namedtuple import InputMediaPhoto, InputMediaVideo, ReplyKeyboardMarkup, KeyboardButton, \
@@ -15,8 +17,8 @@ import subprocess
 def download_live(target_user, username=def_username, password=def_password):
     status, download_live_output = subprocess.getstatusoutput(
         'livestream_dl -u "%s" -p "%s" "%s" ' % (username, password, target_user))
-    #print('livestream_dl -u "%s" -p "%s" "%s" ' % (username, password, target_user))
-    #print(status)
+    # print('livestream_dl -u "%s" -p "%s" "%s" ' % (username, password, target_user))
+    # print(status)
     if status:
         raise Exception('failed')
 
@@ -120,6 +122,11 @@ def get_caption(the_data):
         'node']['text']
 
 
+def get_profile_pic(the_data):
+    print(1333)
+    return the_data['entry_data']['ProfilePage'][0]['graphql']['user']['profile_pic_url_hd']
+
+
 def keyboard_maker(keyboard_labels):
     my_keyboard = []
     for row in keyboard_labels:
@@ -146,9 +153,22 @@ def get_keyboard(user_id):
     return ReplyKeyboardRemove(remove_keyboard=True)
 
 
+def helper_send_file(msg):
+    try:
+        file_id = msg['video']['file_id']
+        user_id = msg['caption']
+        bot.sendVideo(user_id, file_id)
+    except Exception as ex:
+        print(ex)
+
+
 def handle_pv(msg):
     global users
     content_type, _, user_id = telepot.glance(msg)
+    if user_id == helper_id and content_type == 'photo':
+        helper_send_file(msg)
+        return
+
     if content_type == 'text':
         if msg['text'] == '/start':
             bot.sendMessage(user_id, start_msg, reply_markup=get_keyboard(user_id))
@@ -199,17 +219,22 @@ def handle_pv(msg):
                     bot.sendMediaGroup(user_id, album[:10])
                     album = album[10:]
 
-            gen = get_file_names(download_live(msg['text']))
-            for file_name in gen:
-                file = open(file_name, 'rb')
-                bot.sendMessage(user_id, this_live)
-                bot.sendVideo(user_id, file)
-                file.close()
+            try:
+                gen = get_file_names(download_live(msg['text']))
+                for file_name in gen:
+                    '''file = open(file_name, 'rb')
+                    bot.sendMessage(user_id, this_live)
+                    bot.sendVideo(user_id, file)
+                    file.close()'''
+                    os.system('python3 upload_file.py %s %s' % (file_name, user_id))
 
-            exit_code = os.system('rm -rf downloaded')
+                exit_code = os.system('rm -rf downloaded')
 
-            if not exit_code or album:
-                return
+                if not exit_code or album:
+                    return
+
+            except Exception:
+                pass
 
             wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
             ########## Load data ##########
@@ -222,6 +247,10 @@ def handle_pv(msg):
                 return
 
             ########## Send caption ##########
+            ####
+            profile_pic_url = get_profile_pic(the_data)
+            bot.sendPhoto(user_id, profile_pic_url)
+            ####
             try:
                 post_caption = get_caption(the_data)
                 has_caption = True
