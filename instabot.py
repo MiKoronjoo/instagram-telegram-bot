@@ -3,7 +3,7 @@ import sys
 import telepot
 from telepot.loop import MessageLoop
 from telepot.namedtuple import InputMediaPhoto, InputMediaVideo, ReplyKeyboardMarkup, KeyboardButton, \
-    ReplyKeyboardRemove
+    ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
 import time
 import requests
 import json
@@ -123,7 +123,6 @@ def get_caption(the_data):
 
 
 def get_profile_pic(the_data):
-    print(1333)
     return the_data['entry_data']['ProfilePage'][0]['graphql']['user']['profile_pic_url_hd']
 
 
@@ -137,6 +136,19 @@ def keyboard_maker(keyboard_labels):
         my_keyboard.append(keyboard_row)
 
     return ReplyKeyboardMarkup(keyboard=my_keyboard, resize_keyboard=True)
+
+
+def inline_keyboard_maker(keyboard_labels):
+    my_keyboard = []
+    for row in keyboard_labels:
+        keyboard_row = []
+        for label in row:
+            text, callback_data = label
+            keyboard_row.append(InlineKeyboardButton(text=text, callback_data=callback_data))
+
+        my_keyboard.append(keyboard_row)
+
+    return InlineKeyboardMarkup(inline_keyboard=my_keyboard)
 
 
 def get_keyboard(user_id):
@@ -165,7 +177,7 @@ def helper_send_file(msg):
 def handle_pv(msg):
     global users
     content_type, _, user_id = telepot.glance(msg)
-    if user_id == helper_id and content_type == 'photo':
+    if user_id == helper_id and content_type == 'video':
         helper_send_file(msg)
         return
 
@@ -203,6 +215,18 @@ def handle_pv(msg):
 
         else:
             username = msg['text'].split('instagram.com/')[-1]
+            bot.sendMessage(user_id, '*%s*' % username, 'Markdown',
+                            reply_markup=inline_keyboard_maker(
+                                [[('profile', username + ' profile')],
+                                 [('story', username + ' story')],
+                                 [('live', username + ' live')]
+                                 ]
+                            )
+                            )
+
+            return
+            ######################################################################################################
+
             album = []
             for story_url in story_url_generator(username):
                 if story_url.find('.jpg') != -1:
@@ -323,9 +347,64 @@ def message_handler(msg):
         bot.sendMessage(chat_id, state_msgs[users[chat_id]], reply_markup=get_keyboard(chat_id))
 
 
+def callback_query(msg):
+    query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
+    print(query_id, from_id, query_data)
+    username, which = query_data.split()
+
+    bot.answerCallbackQuery(query_id, 'Downloading %s... please wait' % which)
+
+    if which == 'profile':
+        url = 'https://www.instagram.com/' + username
+        source = requests.get(url).text
+        prof_str = 'profile_pic_url_hd":"'
+        first_index = source.find(prof_str) + len(prof_str)
+        last_index = source.find('"', first_index)
+        bot.sendPhoto(from_id, source[first_index:last_index])
+
+    if which == 'story':
+        album = []
+        for story_url in story_url_generator(username):
+            if story_url.find('.jpg') != -1:
+                input_media = InputMediaPhoto(type='photo', media=story_url)
+
+            else:
+                input_media = InputMediaVideo(type='video', media=story_url)
+
+            album.append(input_media)
+
+        if album:
+            bot.sendMessage(from_id, this_story)
+            while album:
+                bot.sendMediaGroup(from_id, album[:10])
+                album = album[10:]
+
+        else:
+            bot.sendMessage(from_id, 'استوری‌ای پیدا نشد!!')
+
+
+    if which == 'live':
+        # try:
+        gen = get_file_names(download_live(username))
+        for file_name in gen:
+            '''file = open(file_name, 'rb')
+            bot.sendMessage(user_id, this_live)
+            bot.sendVideo(user_id, file)
+            file.close()'''
+            os.system('python3 upload_file.py %s %s' % (file_name, from_id))
+
+        os.system('rm -rf downloaded')
+
+        if not list(gen):
+            bot.sendMessage(from_id, 'لایوی پیدا نشد!!')
+
+        # except Exception as ex:
+        #     print(ex)
+
+
 bot = telepot.Bot(TOKEN)
 
-MessageLoop(bot, message_handler).run_as_thread()
+MessageLoop(bot, {'chat': message_handler, 'callback_query': callback_query}).run_as_thread()
 
 print('Program is running...')
 
