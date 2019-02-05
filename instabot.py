@@ -8,6 +8,7 @@ import time
 import requests
 import json
 from config import *
+from consts import *
 import enum
 import pickle
 import os

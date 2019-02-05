@@ -1,15 +1,3 @@
 TOKEN = 'YOUR-BOT-TOKEN'
 admin_id = 0
 helper_id = 0
-start_msg = 'خوش آمدید'
-private_msg = 'متاسفانه این پیج، پرایوت است'
-error_msg = 'لینک اشتباه!'
-bad_input = 'ورودی اشتباه!'
-wait_msg = 'لطفا کمی صبر کنید...'
-this_post = 'پست 👇👇'
-this_posts = 'پست‌ها 👇👇'
-this_caption = 'متن پست 👇'
-this_story = 'استوری‌ها 👇👇'
-this_live = 'لایو 👇👇'
-def_username = 'DEFAULT-USERNAME'
-def_password = 'DEFAULT-PASSWORD'
