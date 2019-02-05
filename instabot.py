@@ -213,84 +213,101 @@ def handle_pv(msg):
             users.update({user_id: STATE.MANAGE})
 
         else:
-            username = msg['text'].split('instagram.com/')[-1].replace('/', '')
-            bot.sendMessage(user_id, user_info % (username, username, 'instagram.com/' + username), 'Markdown',
-                            reply_markup=inline_keyboard_maker(
-                                [[('دانلود عکس پروفایل', username + ' profile')],
-                                 [('دانلود استوری‌ها', username + ' story')],
-                                 [('دانلود لایوها', username + ' live')]
-                                 ]
-                            )
-                            )
-
-            return
-            ######################################################################################################
-
-            wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
-            ########## Load data ##########
             try:
-                the_data = get_data(msg['text'])
-
-            except:
-                bot.deleteMessage((user_id, wait_msg_id))
-                bot.sendMessage(user_id, bad_input, reply_markup=get_keyboard(user_id))
-                return
-
-            ########## Send caption ##########
-            try:
-                post_caption = get_caption(the_data)
-                has_caption = True
-
-            except IndexError:
-                has_caption = False
-
-            except KeyError:
-                bot.deleteMessage((user_id, wait_msg_id))
-                if the_data['entry_data']['ProfilePage'][0]['graphql']['user']['is_private']:
-                    bot.sendMessage(user_id, private_msg)
-
+                username = msg['text'].split('instagram.com/')[-1].replace('/', '').lower()
+                source = requests.get('https://www.instagram.com/' + username).text
+                if source.find('profile_pic_url_hd":"') != -1:
+                    #
+                    fn_str = '"full_name":"'
+                    first_index = source.find(fn_str) + len(fn_str)
+                    last_index = source.find('"', first_index)
+                    full_name = source[first_index:last_index]
+                    #
+                    try:
+                        full_name = eval(('"' + full_name + '"').replace('\\\\u', '\\\\u'))
+                        print(full_name)
+                    except UnicodeEncodeError:
+                        full_name = source[first_index:last_index]
+                    #
+                    bot.sendMessage(user_id, user_info % (full_name, username, 'instagram.com/' + username), 'Markdown',
+                                    reply_markup=inline_keyboard_maker(
+                                        [[('دانلود عکس پروفایل', username + ' profile')],
+                                         [('دانلود استوری‌ها', username + ' story')],
+                                         [('دانلود لایوها', username + ' live')]
+                                         ]
+                                    )
+                                    )
+                    return
                 else:
-                    bot.sendMessage(user_id, error_msg)
+                    wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
+                    ########## Load data ##########
+                    try:
+                        the_data = get_data(msg['text'])
 
-                return
+                    except:
+                        bot.deleteMessage((user_id, wait_msg_id))
+                        bot.sendMessage(user_id, bad_input, reply_markup=get_keyboard(user_id))
+                        return
 
-            ########## Send media group ##########
-            try:
-                album = []
-                for media_url in media_url_generator(the_data):
-                    if media_url.find('.jpg') != -1:
-                        input_media = InputMediaPhoto(type='photo', media=media_url)
+                    ########## Send caption ##########
+                    try:
+                        post_caption = get_caption(the_data)
+                        has_caption = True
 
-                    else:
-                        input_media = InputMediaVideo(type='video', media=media_url)
+                    except IndexError:
+                        has_caption = False
 
-                    album.append(input_media)
+                    except KeyError:
+                        bot.deleteMessage((user_id, wait_msg_id))
+                        if the_data['entry_data']['ProfilePage'][0]['graphql']['user']['is_private']:
+                            bot.sendMessage(user_id, private_msg)
 
-                bot.deleteMessage((user_id, wait_msg_id))
-                bot.sendMessage(user_id, this_posts)
-                bot.sendMediaGroup(user_id, album)
+                        else:
+                            bot.sendMessage(user_id, error_msg)
 
-            ########## Single media ##########
-            except KeyError:
-                ########## Send video ##########
-                try:
-                    video_url = the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['video_url']
-                    bot.deleteMessage((user_id, wait_msg_id))
-                    bot.sendMessage(user_id, this_post)
-                    bot.sendVideo(user_id, video_url)
+                        return
 
-                ########## Send Photo ##########
-                except KeyError:
-                    pic_url = \
-                        the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['display_resources'][-1][
-                            'src']
-                    bot.deleteMessage((user_id, wait_msg_id))
-                    bot.sendMessage(user_id, this_post)
-                    bot.sendPhoto(user_id, pic_url)
+                    ########## Send media group ##########
+                    try:
+                        album = []
+                        for media_url in media_url_generator(the_data):
+                            if media_url.find('.jpg') != -1:
+                                input_media = InputMediaPhoto(type='photo', media=media_url)
 
-            if has_caption:
-                bot.sendMessage(user_id, this_caption)
-                bot.sendMessage(user_id, post_caption)
+                            else:
+                                input_media = InputMediaVideo(type='video', media=media_url)
+
+                            album.append(input_media)
+
+                        bot.deleteMessage((user_id, wait_msg_id))
+                        bot.sendMessage(user_id, this_posts)
+                        bot.sendMediaGroup(user_id, album)
+
+                    ########## Single media ##########
+                    except KeyError:
+                        ########## Send video ##########
+                        try:
+                            video_url = the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media']['video_url']
+                            bot.deleteMessage((user_id, wait_msg_id))
+                            bot.sendMessage(user_id, this_post)
+                            bot.sendVideo(user_id, video_url)
+
+                        ########## Send Photo ##########
+                        except KeyError:
+                            pic_url = the_data['entry_data']['PostPage'][0]['graphql']['shortcode_media'][
+                                'display_resources'][-1]['src']
+                            bot.deleteMessage((user_id, wait_msg_id))
+                            bot.sendMessage(user_id, this_post)
+                            bot.sendPhoto(user_id, pic_url)
+
+                    if has_caption:
+                        bot.sendMessage(user_id, this_caption)
+                        bot.sendMessage(user_id, post_caption)
+
+
+            except Exception as ex:
+                print(ex)
+                bot.sendMessage(user_id, bad_input)
 
 
 def message_handler(msg):
