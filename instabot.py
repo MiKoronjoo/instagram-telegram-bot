@@ -18,8 +18,6 @@ import subprocess
 def download_live(target_user, username=def_username, password=def_password):
     status, download_live_output = subprocess.getstatusoutput(
         'livestream_dl -u "%s" -p "%s" "%s" ' % (username, password, target_user))
-    # print('livestream_dl -u "%s" -p "%s" "%s" ' % (username, password, target_user))
-    # print(status)
     if status:
         raise Exception('failed')
 
@@ -123,8 +121,8 @@ def get_caption(the_data):
         'node']['text']
 
 
-def get_profile_pic(the_data):
-    return the_data['entry_data']['ProfilePage'][0]['graphql']['user']['profile_pic_url_hd']
+# def get_profile_pic(the_data):
+#     return the_data['entry_data']['ProfilePage'][0]['graphql']['user']['profile_pic_url_hd']
 
 
 def keyboard_maker(keyboard_labels):
@@ -215,51 +213,18 @@ def handle_pv(msg):
             users.update({user_id: STATE.MANAGE})
 
         else:
-            username = msg['text'].split('instagram.com/')[-1]
-            bot.sendMessage(user_id, '*%s*' % username, 'Markdown',
+            username = msg['text'].split('instagram.com/')[-1].replace('/', '')
+            bot.sendMessage(user_id, user_info % (username, username, 'instagram.com/' + username), 'Markdown',
                             reply_markup=inline_keyboard_maker(
-                                [[('profile', username + ' profile')],
-                                 [('story', username + ' story')],
-                                 [('live', username + ' live')]
+                                [[('دانلود عکس پروفایل', username + ' profile')],
+                                 [('دانلود استوری‌ها', username + ' story')],
+                                 [('دانلود لایوها', username + ' live')]
                                  ]
                             )
                             )
 
             return
             ######################################################################################################
-
-            album = []
-            for story_url in story_url_generator(username):
-                if story_url.find('.jpg') != -1:
-                    input_media = InputMediaPhoto(type='photo', media=story_url)
-
-                else:
-                    input_media = InputMediaVideo(type='video', media=story_url)
-
-                album.append(input_media)
-
-            if album:
-                bot.sendMessage(user_id, this_story)
-                while album:
-                    bot.sendMediaGroup(user_id, album[:10])
-                    album = album[10:]
-
-            try:
-                gen = get_file_names(download_live(msg['text']))
-                for file_name in gen:
-                    '''file = open(file_name, 'rb')
-                    bot.sendMessage(user_id, this_live)
-                    bot.sendVideo(user_id, file)
-                    file.close()'''
-                    os.system('python3 upload_file.py %s %s' % (file_name, user_id))
-
-                exit_code = os.system('rm -rf downloaded')
-
-                if not exit_code or album:
-                    return
-
-            except Exception:
-                pass
 
             wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
             ########## Load data ##########
@@ -272,10 +237,6 @@ def handle_pv(msg):
                 return
 
             ########## Send caption ##########
-            ####
-            profile_pic_url = get_profile_pic(the_data)
-            bot.sendPhoto(user_id, profile_pic_url)
-            ####
             try:
                 post_caption = get_caption(the_data)
                 has_caption = True
@@ -361,6 +322,7 @@ def callback_query(msg):
         prof_str = 'profile_pic_url_hd":"'
         first_index = source.find(prof_str) + len(prof_str)
         last_index = source.find('"', first_index)
+        bot.sendMessage(from_id, this_pro_pic)
         bot.sendPhoto(from_id, source[first_index:last_index])
 
     if which == 'story':
@@ -381,26 +343,16 @@ def callback_query(msg):
                 album = album[10:]
 
         else:
-            bot.sendMessage(from_id, 'استوری‌ای پیدا نشد!!')
-
+            bot.sendMessage(from_id, story_not_found)
 
     if which == 'live':
-        # try:
         gen = get_file_names(download_live(username))
         for file_name in gen:
-            '''file = open(file_name, 'rb')
-            bot.sendMessage(user_id, this_live)
-            bot.sendVideo(user_id, file)
-            file.close()'''
             os.system('python3 upload_file.py %s %s' % (file_name, from_id))
 
         os.system('rm -rf downloaded')
-
         if not list(gen):
-            bot.sendMessage(from_id, 'لایوی پیدا نشد!!')
-
-        # except Exception as ex:
-        #     print(ex)
+            bot.sendMessage(from_id, live_not_found)
 
 
 bot = telepot.Bot(TOKEN)
