@@ -44,11 +44,14 @@ def getTotalFollowers(api, username, msg_id):
     first_index = source.find(count_str) + len(count_str)
     last_index = source.find('"', first_index)
     total = int(source[first_index:last_index])
+    max_total = total
+    if max_total > 30000:
+        max_total = 30000
     ###
     followers = []
     next_max_id = True
     total_now = 0
-    while next_max_id:
+    while next_max_id or total_now < max_total:
         # first iteration hack
         if next_max_id is True:
             next_max_id = ''
@@ -56,11 +59,11 @@ def getTotalFollowers(api, username, msg_id):
         ###
         temp = api.LastJson.get('users', [])
         total_now += len(temp)
-        progress_bar(msg_id, total_now, total)
+        progress_bar(msg_id, total_now, max_total)
         ###
         followers.extend(temp)
         next_max_id = api.LastJson.get('next_max_id', '')
-    return followers
+    return followers, total
 
 
 def progress_bar(msg_id: tuple, current_value: int, end_value: int) -> None:
@@ -76,9 +79,9 @@ def progress_bar(msg_id: tuple, current_value: int, end_value: int) -> None:
 
 def lottery(chat_id, username, winners_num):
     msg_id = chat_id, bot.sendMessage(chat_id, 'لطفا صبر کنید...')['message_id']
-    followers = getTotalFollowers(api, username, msg_id)
+    followers, total = getTotalFollowers(api, username, msg_id)
     winners = get_winners(followers, winners_num)
-    wow = (lottery_msg % (username, len(followers), winners_num, 'instagram.com/' + username)) + '\n'.join(winners)
+    wow = (lottery_msg % (username, total, winners_num, 'instagram.com/' + username)) + '\n'.join(winners)
     bot.deleteMessage(msg_id)
     bot.sendMessage(chat_id, wow)
 
@@ -283,6 +286,9 @@ def handle_pv(msg):
         else:
             ##### lottery #####
             if 'reply_to_message' in msg and msg['text'].isdigit():
+                if int(msg['text']) > 200:
+                    bot.sendMessage(user_id, num_error)
+                    return
                 try:
                     username = msg['reply_to_message']['text'].split('@')[-1]
                     winners_num = int(msg['text'])
