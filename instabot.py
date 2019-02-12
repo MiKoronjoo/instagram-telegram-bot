@@ -44,9 +44,11 @@ def getTotalFollowers(api, username, msg_id):
     first_index = source.find(count_str) + len(count_str)
     last_index = source.find('"', first_index)
     total = int(source[first_index:last_index])
+    if total > 100000:
+        raise Exception
     max_total = total
-    if max_total > 30000:
-        max_total = 30000
+    if max_total > 20000:
+        max_total = 20000
     ###
     followers = []
     next_max_id = True
@@ -79,7 +81,11 @@ def progress_bar(msg_id: tuple, current_value: int, end_value: int) -> None:
 
 def lottery(chat_id, username, winners_num):
     msg_id = chat_id, bot.sendMessage(chat_id, 'لطفا صبر کنید...')['message_id']
-    followers, total = getTotalFollowers(api, username, msg_id)
+    try:
+        followers, total = getTotalFollowers(api, username, msg_id)
+    except Exception:
+        bot.sendMessage(chat_id, fol_error)
+        return
     winners = get_winners(followers, winners_num)
     wow = (lottery_msg % (username, total, winners_num, 'instagram.com/' + username)) + '\n'.join(winners)
     bot.deleteMessage(msg_id)
@@ -317,7 +323,8 @@ def handle_pv(msg):
                                     reply_markup=inline_keyboard_maker(
                                         [[('دانلود عکس پروفایل', username + ' profile')],
                                          [('دانلود استوری‌ها', username + ' story')],
-                                         [('دانلود لایوها', username + ' live')]
+                                         [('دانلود لایوها', username + ' live')],
+                                         [('قرعه‌کشی بین اعضای پیج', username + ' lottery')]
                                          ]
                                     )
                                     )
@@ -436,7 +443,7 @@ def my_callback_query(msg):
         bot.sendMessage(from_id, this_pro_pic)
         bot.sendPhoto(from_id, source[first_index:last_index])
 
-    if which == 'story':
+    elif which == 'story':
         album = []
         for story_url in story_url_generator(username):
             if story_url.find('.jpg') != -1:
@@ -456,7 +463,7 @@ def my_callback_query(msg):
         else:
             bot.sendMessage(from_id, story_not_found)
 
-    if which == 'live':
+    elif which == 'live':
         srch_msg_id = bot.sendMessage(from_id, 'درحال جستجو لایو...')['message_id']
         gen = get_file_names(download_live(username))
         found = False
@@ -470,6 +477,9 @@ def my_callback_query(msg):
             bot.sendMessage(from_id, live_not_found)
 
         bot.deleteMessage((from_id, srch_msg_id))
+
+    elif which == 'lottery':
+        bot.sendMessage(from_id, lottery_info)
 
 
 api = InstagramAPI.InstagramAPI(def_username, def_password)
