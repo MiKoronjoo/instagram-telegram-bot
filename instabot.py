@@ -432,7 +432,10 @@ def my_callback_query(msg):
     print(query_id, from_id, query_data)
     username, which = query_data.split()
     en2fa = {'profile': 'عکس پروفایل', 'story': 'استوری', 'live': 'لایو'}
-    bot.answerCallbackQuery(query_id, 'در حال دانلود %s... لطفا شکیبا باشید' % en2fa[which])
+    try:
+        bot.answerCallbackQuery(query_id, 'در حال دانلود %s... لطفا شکیبا باشید' % en2fa[which])
+    except KeyError:
+        pass
 
     if which == 'profile':
         url = 'https://www.instagram.com/' + username
