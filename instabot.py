@@ -482,7 +482,7 @@ def my_callback_query(msg):
         bot.deleteMessage((from_id, srch_msg_id))
 
     elif which == 'lottery':
-        bot.sendMessage(from_id, lottery_info)
+        bot.answerCallbackQuery(query_id, lottery_info)
 
 
 api = InstagramAPI.InstagramAPI(def_username, def_password)
