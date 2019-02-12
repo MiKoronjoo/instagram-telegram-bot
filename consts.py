@@ -18,3 +18,10 @@ user_info = '*%s*\n\n[@%s](%s)'
 
 def_username = 'myfirstpj'
 def_password = 'w951q951'
+
+lottery_msg = '''
+قرعه کشی پیج %s انجام شد 
+تعداد کاربران پیج : %d
+تعداد برندگان : %d
+لینک پیج : %s
+اسامی برندگان :'''

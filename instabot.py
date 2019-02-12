@@ -1,5 +1,4 @@
-import sys
-
+import InstagramAPI
 import telepot
 from telepot.loop import MessageLoop
 from telepot.namedtuple import InputMediaPhoto, InputMediaVideo, ReplyKeyboardMarkup, KeyboardButton, \
@@ -13,6 +12,75 @@ import enum
 import pickle
 import os
 import subprocess
+import _thread
+import random
+
+
+def get_winners(followers, winners_num):
+    winners = []
+    i = 0
+    while len(winners) != winners_num:
+        i += 1
+        winner = random.choice(followers)['username']
+        if winner not in winners:
+            winners.append('%d. %s' % (i, winner))
+
+    return winners
+
+
+def getTotalFollowers(api, username, msg_id):
+    """
+    Returns the list of followers of the user.
+    It should be equivalent of calling api.getTotalFollowers from InstagramAPI
+    """
+    ###
+    source = requests.get('https://instagram.com/' + username).text
+    owner_str = '"owner":{"id":"'
+    first_index = source.find(owner_str) + len(owner_str)
+    last_index = source.find('"', first_index)
+    user_id = int(source[first_index:last_index])
+
+    count_str = '"userInteractionCount":"'
+    first_index = source.find(count_str) + len(count_str)
+    last_index = source.find('"', first_index)
+    total = int(source[first_index:last_index])
+    ###
+    followers = []
+    next_max_id = True
+    total_now = 0
+    while next_max_id:
+        # first iteration hack
+        if next_max_id is True:
+            next_max_id = ''
+        _ = api.getUserFollowers(user_id, maxid=next_max_id)
+        ###
+        temp = api.LastJson.get('users', [])
+        total_now += len(temp)
+        progress_bar(msg_id, total_now, total)
+        ###
+        followers.extend(temp)
+        next_max_id = api.LastJson.get('next_max_id', '')
+    return followers
+
+
+def progress_bar(msg_id: tuple, current_value: int, end_value: int) -> None:
+    new_msg = int((current_value / end_value) * 100)
+    if new_msg >= 100:
+        new_msg = 99
+    # if current_value:
+    try:
+        bot.editMessageText(msg_id, 'در حال قرعه‌کشی بین فالورها: {0}%'.format(new_msg))
+    except telepot.exception.TelegramError:
+        pass
+
+
+def lottery(chat_id, username, winners_num):
+    msg_id = chat_id, bot.sendMessage(chat_id, 'لطفا صبر کنید...')['message_id']
+    followers = getTotalFollowers(api, username, msg_id)
+    winners = get_winners(followers, winners_num)
+    wow = (lottery_msg % (username, len(followers), winners_num, 'instagram.com/' + username)) + '\n'.join(winners)
+    bot.deleteMessage(msg_id)
+    bot.sendMessage(chat_id, wow)
 
 
 def download_live(target_user, username=def_username, password=def_password):
@@ -25,7 +93,6 @@ def download_live(target_user, username=def_username, password=def_password):
 
 
 def get_file_names(st):
-    left_pivot = 1
     right_bound = 0
     while True:
         left_pivot = st.find('Generated file(s):', right_bound) + 1
@@ -73,7 +140,7 @@ def statistics():
            % (len(users), len([x for x in times if x > this_time]))
 
 
-state_msgs = {STATE.START: 'لطفا لینک یک پست اینستاگرام را بفرستید',
+state_msgs = {STATE.START: 'لطفا یک نام‌کاربری یا لینک یک پست اینستاگرام را بفرستید:',
               STATE.MANAGE: 'لطفا یکی از موارد را انتخاب کنید:',
               STATE.SEND_TO_ALL: 'لطفا یک پیغام برای ارسال به تمام کاربران وارد کنید:',
               STATE.BOT_STATISTICS: statistics()
@@ -168,6 +235,7 @@ def helper_send_file(msg):
     try:
         file_id = msg['video']['file_id']
         user_id = msg['caption']
+        bot.sendMessage(user_id, this_live)
         bot.sendVideo(user_id, file_id)
     except Exception as ex:
         print(ex)
@@ -213,8 +281,18 @@ def handle_pv(msg):
             users.update({user_id: STATE.MANAGE})
 
         else:
+            ##### lottery #####
+            if 'reply_to_message' in msg and msg['text'].isdigit():
+                try:
+                    username = msg['reply_to_message']['text'].split('@')[-1]
+                    winners_num = int(msg['text'])
+                    lottery(user_id, username, winners_num)
+                except:
+                    bot.sendMessage(user_id, bad_input)
+                return
+            ###################
             try:
-                username = msg['text'].split('instagram.com/')[-1].replace('/', '').lower()
+                username = msg['text'].split('instagram.com/')[-1].split('?')[0].replace('/', '').lower()
                 source = requests.get('https://www.instagram.com/' + username).text
                 if source.find('profile_pic_url_hd":"') != -1:
                     #
@@ -311,6 +389,11 @@ def handle_pv(msg):
 
 
 def message_handler(msg):
+    _thread.start_new_thread(my_message_handler, (msg,))
+    return
+
+
+def my_message_handler(msg):
     global users
     content_type, chat_type, chat_id = telepot.glance(msg)
     if chat_type == u'private':
@@ -327,11 +410,16 @@ def message_handler(msg):
 
 
 def callback_query(msg):
+    _thread.start_new_thread(my_callback_query, (msg,))
+    return
+
+
+def my_callback_query(msg):
     query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
     print(query_id, from_id, query_data)
     username, which = query_data.split()
-
-    bot.answerCallbackQuery(query_id, 'Downloading %s... please wait' % which)
+    en2fa = {'profile': 'عکس پروفایل', 'story': 'استوری', 'live': 'لایو'}
+    bot.answerCallbackQuery(query_id, 'در حال دانلود %s... لطفا شکیبا باشید' % en2fa[which])
 
     if which == 'profile':
         url = 'https://www.instagram.com/' + username
@@ -363,14 +451,24 @@ def callback_query(msg):
             bot.sendMessage(from_id, story_not_found)
 
     if which == 'live':
+        srch_msg_id = bot.sendMessage(from_id, 'درحال جستجو لایو...')['message_id']
         gen = get_file_names(download_live(username))
+        found = False
         for file_name in gen:
+            found = True
+            bot.editMessageText((from_id, srch_msg_id), 'درحال آپلود لایو روی سرور تلگرام...')
             os.system('python3 upload_file.py %s %s' % (file_name, from_id))
 
         os.system('rm -rf downloaded')
-        if not list(gen):
+        if not found:
             bot.sendMessage(from_id, live_not_found)
 
+        bot.deleteMessage((from_id, srch_msg_id))
+
+
+api = InstagramAPI.InstagramAPI(def_username, def_password)
+api.login()
+print('Instagram logged in')
 
 bot = telepot.Bot(TOKEN)
 
