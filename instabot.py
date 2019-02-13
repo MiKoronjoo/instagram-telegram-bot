@@ -319,15 +319,18 @@ def handle_pv(msg):
                     except UnicodeEncodeError:
                         full_name = source[first_index:last_index]
                     #
-                    bot.sendMessage(user_id, user_info % (full_name, username, 'instagram.com/' + username), 'Markdown',
-                                    reply_markup=inline_keyboard_maker(
-                                        [[('دانلود عکس پروفایل', username + ' profile')],
-                                         [('دانلود استوری‌ها', username + ' story')],
-                                         [('دانلود لایوها', username + ' live')],
-                                         [('قرعه‌کشی بین اعضای پیج', username + ' lottery')]
-                                         ]
-                                    )
-                                    )
+                    msg_id = bot.sendMessage(user_id, user_info % (full_name, username, 'instagram.com/' + username),
+                                             'Markdown')['message_id']
+                    bot.editMessageText((user_id, msg_id),
+                                        user_info % (full_name, username, 'instagram.com/' + username), 'Markdown',
+                                        reply_markup=inline_keyboard_maker(
+                                            [[('دانلود عکس پروفایل', username + ' profile ' + str(msg_id))],
+                                             [('دانلود استوری‌ها', username + ' story ' + str(msg_id))],
+                                             [('دانلود لایوها', username + ' live ' + str(msg_id))],
+                                             [('قرعه‌کشی بین اعضای پیج', username + ' lottery ' + str(msg_id))]
+                                             ]
+                                        )
+                                        )
                     return
                 else:
                     wait_msg_id = bot.sendMessage(user_id, wait_msg)['message_id']
@@ -430,7 +433,8 @@ def callback_query(msg):
 def my_callback_query(msg):
     query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
     print(query_id, from_id, query_data)
-    username, which = query_data.split()
+    username, which, msg_id = query_data.split()
+    msg_id = int(msg_id)
     en2fa = {'profile': 'عکس پروفایل', 'story': 'استوری', 'live': 'لایو'}
     try:
         bot.answerCallbackQuery(query_id, 'در حال دانلود %s... لطفا شکیبا باشید' % en2fa[which])
@@ -482,7 +486,36 @@ def my_callback_query(msg):
         bot.deleteMessage((from_id, srch_msg_id))
 
     elif which == 'lottery':
-        bot.answerCallbackQuery(query_id, lottery_info)
+        bot.editMessageText((from_id, msg_id), lottery_info % username, 'Markdown', reply_markup=inline_keyboard_maker(
+            [
+                [('بازگشت', username + ' back ' + str(msg_id))]
+            ]
+        ))
+
+    elif which == 'back':
+        source = requests.get('https://www.instagram.com/' + username).text
+        if source.find('profile_pic_url_hd":"') != -1:
+            #
+            fn_str = '"full_name":"'
+            first_index = source.find(fn_str) + len(fn_str)
+            last_index = source.find('"', first_index)
+            full_name = source[first_index:last_index]
+            #
+            try:
+                full_name = eval(('"' + full_name + '"').replace('\\\\u', '\\\\u'))
+                print(full_name)
+            except UnicodeEncodeError:
+                full_name = source[first_index:last_index]
+        bot.editMessageText((from_id, msg_id), user_info % (full_name, username, 'instagram.com/' + username),
+                            'Markdown',
+                            reply_markup=inline_keyboard_maker(
+                                [[('دانلود عکس پروفایل', username + ' profile ' + str(msg_id))],
+                                 [('دانلود استوری‌ها', username + ' story ' + str(msg_id))],
+                                 [('دانلود لایوها', username + ' live ' + str(msg_id))],
+                                 [('قرعه‌کشی بین اعضای پیج', username + ' lottery ' + str(msg_id))]
+                                 ]
+                            )
+                            )
 
 
 api = InstagramAPI.InstagramAPI(def_username, def_password)
