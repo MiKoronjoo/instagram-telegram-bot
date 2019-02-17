@@ -18,14 +18,16 @@ import random
 
 def get_winners(followers, winners_num):
     winners = []
-    i = 0
     while len(winners) != winners_num:
-        i += 1
         winner = random.choice(followers)['username']
         if winner not in winners:
-            winners.append('%d. %s' % (i, winner))
+            winners.append(winner)
 
-    return winners
+    winners_str = []
+    for i in range(winners_num):
+        winners.append('%d. %s' % (i + 1, winners[i]))
+
+    return winners_str
 
 
 def getTotalFollowers(api, username, msg_id):
@@ -83,9 +85,12 @@ def lottery(chat_id, username, winners_num):
     msg_id = chat_id, bot.sendMessage(chat_id, 'لطفا صبر کنید...')['message_id']
     try:
         followers, total = getTotalFollowers(api, username, msg_id)
+
     except Exception:
         bot.sendMessage(chat_id, fol_error)
         return
+
+    assert len(followers) >= winners_num
     winners = get_winners(followers, winners_num)
     wow = (lottery_msg % (username, total, winners_num, 'instagram.com/' + username)) + '\n'.join(winners)
     bot.deleteMessage(msg_id)
@@ -299,8 +304,13 @@ def handle_pv(msg):
                     username = msg['reply_to_message']['text'].split('@')[-1]
                     winners_num = int(msg['text'])
                     lottery(user_id, username, winners_num)
+
+                except AssertionError:
+                    bot.sendMessage(user_id, win_error)
+
                 except:
                     bot.sendMessage(user_id, bad_input)
+
                 return
             ###################
             try:
