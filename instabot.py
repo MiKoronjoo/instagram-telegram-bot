@@ -16,6 +16,13 @@ import _thread
 import random
 
 
+def get_candidates_num(followers_num):
+    if followers_num < 1066:
+        return followers_num
+
+    return 1000 + followers_num // 15
+
+
 def get_winners(followers, winners_num):
     winners = []
     while len(winners) != winners_num:
@@ -46,11 +53,10 @@ def getTotalFollowers(api, username, msg_id):
     first_index = source.find(count_str) + len(count_str)
     last_index = source.find('"', first_index)
     total = int(source[first_index:last_index])
-    if total > 100000:
+    if total > 500000:
         raise Exception
-    max_total = total
-    if max_total > 20000:
-        max_total = 20000
+
+    max_total = get_candidates_num(total)
     ###
     followers = []
     next_max_id = True
