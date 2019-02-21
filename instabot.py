@@ -32,7 +32,7 @@ def get_winners(followers, winners_num):
 
     winners_str = []
     for i in range(winners_num):
-        winners.append('%d. %s' % (i + 1, winners[i]))
+        winners_str.append('%d. %s' % (i + 1, winners[i]))
 
     return winners_str
 
@@ -53,15 +53,14 @@ def getTotalFollowers(api, username, msg_id):
     first_index = source.find(count_str) + len(count_str)
     last_index = source.find('"', first_index)
     total = int(source[first_index:last_index])
-    if total > 500000:
-        raise Exception
+    assert total <= 500000
 
     max_total = get_candidates_num(total)
     ###
     followers = []
     next_max_id = True
     total_now = 0
-    while next_max_id or total_now < max_total:
+    while next_max_id and total_now < max_total:
         # first iteration hack
         if next_max_id is True:
             next_max_id = ''
@@ -92,8 +91,12 @@ def lottery(chat_id, username, winners_num):
     try:
         followers, total = getTotalFollowers(api, username, msg_id)
 
-    except Exception:
+    except AssertionError:
         bot.sendMessage(chat_id, fol_error)
+        return
+
+    except:
+        bot.sendMessage(chat_id, private_msg)
         return
 
     assert len(followers) >= winners_num
